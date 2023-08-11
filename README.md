@@ -1,5 +1,7 @@
 # Packer Builder
 
+[![CI/CD](https://github.com/rarrais/packer-builder/actions/workflows/container.yml/badge.svg)](https://github.com/rarrais/packer-builder/actions/workflows/container.yml)
+
 Container-based builder for [Packer](https://www.packer.io/) using [QEMU](https://www.qemu.org/) and [Ansible](https://www.ansible.com/). 
 
 Derived from [mkaczanowski/packer-builder-arm](https://github.com/mkaczanowski/packer-builder-arm).
