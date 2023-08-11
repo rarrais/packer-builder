@@ -1,0 +1,74 @@
+name: CI/CD
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches: [ master ]
+  pull_request:
+    branches: [master]
+  schedule:
+    # once a week
+    - cron:  '0 0 * * 1'
+
+env:
+  REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/packer-builder
+  IMAGE_DESCRIPTION: Container-based builder for Packer using QEMU and Ansible
+  IMAGE_LICENSE: Apache-2.0
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.5.3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=match,pattern=v(.*),group=1
+          labels: |
+            org.opencontainers.image.description=${{ env.IMAGE_DESCRIPTION }}
+            org.opencontainers.image.licenses=${{ env.IMAGE_LICENSE }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          load: true
+          tags: test:test
+
+      - name: Test Image
+        run: |
+          docker run --rm --privileged -v /dev:/dev -v ${PWD}:/build test:test version
+
+      - name: Build for other Platforms & Push Image
+        uses: docker/build-push-action@v4
+        # if: ${{ github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags') }}
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false # https://github.com/docker/build-push-action/issues/820
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
